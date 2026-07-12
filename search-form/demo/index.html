@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SearchForm Demo — MUI</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@emotion/react@latest/dist/emotion-react.umd.min.js"></script>
+  <script src="https://unpkg.com/@emotion/styled@latest/dist/emotion-styled.umd.min.js"></script>
+  <script src="https://unpkg.com/@mui/material@latest/umd/material-ui.development.js"></script>
+  <style>
+    body { background: #f5f5f5; margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+    const {
+      Box, Container, Typography, Paper, Stack,
+      TextField, FormControl, InputLabel, Select, MenuItem,
+      FormGroup, FormControlLabel, Checkbox,
+      Button, Chip, Divider,
+      Table, TableBody, TableCell, TableContainer,
+      TableHead, TableRow,
+      InputAdornment,
+    } = MaterialUI;
+
+    // ---- Constants ----
+
+    const STATUS_OPTIONS = [
+      { value: "active",   label: "進行中" },
+      { value: "pending",  label: "保留中" },
+      { value: "closed",   label: "完了" },
+    ];
+
+    const CATEGORY_OPTIONS = [
+      { value: "web",     label: "Web開発" },
+      { value: "mobile",  label: "モバイル" },
+      { value: "design",  label: "デザイン" },
+      { value: "backend", label: "バックエンド" },
+    ];
+
+    const TAG_OPTIONS = [
+      { value: "react",      label: "React" },
+      { value: "typescript", label: "TypeScript" },
+      { value: "nextjs",     label: "Next.js" },
+      { value: "tailwind",   label: "Tailwind" },
+      { value: "nodejs",     label: "Node.js" },
+    ];
+
+    const STATUS_COLOR = {
+      active:  "success",
+      pending: "warning",
+      closed:  "default",
+    };
+    const STATUS_LABEL  = { active: "進行中", pending: "保留中", closed: "完了" };
+    const CATEGORY_LABEL = { web: "Web開発", mobile: "モバイル", design: "デザイン", backend: "バックエンド" };
+
+    const SAMPLE_DATA = [
+      { id: 1,  title: "ECサイトリニューアル",        category: "web",     status: "active",  date: "2026-05-10", tags: ["react", "typescript", "nextjs"] },
+      { id: 2,  title: "社内管理ツール開発",           category: "backend", status: "active",  date: "2026-04-20", tags: ["nodejs", "typescript"] },
+      { id: 3,  title: "スマホアプリUI改善",           category: "mobile",  status: "pending", date: "2026-06-01", tags: ["react", "tailwind"] },
+      { id: 4,  title: "コーポレートサイト制作",       category: "design",  status: "closed",  date: "2026-03-15", tags: ["tailwind"] },
+      { id: 5,  title: "APIゲートウェイ構築",          category: "backend", status: "active",  date: "2026-06-18", tags: ["nodejs"] },
+      { id: 6,  title: "ダッシュボード開発",           category: "web",     status: "pending", date: "2026-07-01", tags: ["react", "typescript", "tailwind"] },
+      { id: 7,  title: "LP制作（キャンペーン）",       category: "design",  status: "closed",  date: "2026-02-28", tags: ["tailwind"] },
+      { id: 8,  title: "モバイルアプリ新規開発",       category: "mobile",  status: "active",  date: "2026-07-10", tags: ["react", "typescript"] },
+      { id: 9,  title: "認証基盤リファクタリング",     category: "backend", status: "pending", date: "2026-05-25", tags: ["nodejs", "typescript"] },
+      { id: 10, title: "Next.js移行プロジェクト",     category: "web",     status: "active",  date: "2026-06-30", tags: ["react", "nextjs", "typescript"] },
+    ];
+
+    const DEFAULT_FILTERS = {
+      keyword:  "",
+      category: "",
+      status:   "",
+      dateFrom: "",
+      dateTo:   "",
+      tags:     [],
+    };
+
+    // ---- filter logic ----
+
+    function applyFilters(data, f) {
+      return data.filter(row => {
+        if (f.keyword  && !row.title.toLowerCase().includes(f.keyword.toLowerCase())) return false;
+        if (f.category && row.category !== f.category) return false;
+        if (f.status   && row.status   !== f.status)   return false;
+        if (f.dateFrom && row.date < f.dateFrom)        return false;
+        if (f.dateTo   && row.date > f.dateTo)          return false;
+        if (f.tags.length > 0 && !f.tags.every(t => row.tags.includes(t))) return false;
+        return true;
+      });
+    }
+
+    // ---- SearchForm ----
+
+    function SearchForm({ onSearch, onReset }) {
+      const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+      const set = (key, value) => setFilters(prev => ({ ...prev, [key]: value }));
+
+      const toggleTag = (tag) =>
+        setFilters(prev => ({
+          ...prev,
+          tags: prev.tags.includes(tag)
+            ? prev.tags.filter(t => t !== tag)
+            : [...prev.tags, tag],
+        }));
+
+      const handleReset = () => { setFilters(DEFAULT_FILTERS); onReset(); };
+      const handleSubmit = (e) => { e.preventDefault(); onSearch(filters); };
+
+      return (
+        <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, textTransform: "uppercase", letterSpacing: 1 }}>
+            検索条件
+          </Typography>
+
+          <Box component="form" onSubmit={handleSubmit}>
+            <Stack spacing={3}>
+
+              {/* Keyword */}
+              <TextField
+                label="キーワード"
+                size="small"
+                fullWidth
+                value={filters.keyword}
+                onChange={e => set("keyword", e.target.value)}
+                placeholder="案件名・キーワードで検索..."
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <span className="material-icons" style={{ fontSize: 18, color: "#9e9e9e" }}>search</span>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {/* Category + Status */}
+              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>カテゴリ</InputLabel>
+                  <Select
+                    label="カテゴリ"
+                    value={filters.category}
+                    onChange={e => set("category", e.target.value)}
+                  >
+                    <MenuItem value=""><em>すべて</em></MenuItem>
+                    {CATEGORY_OPTIONS.map(o => (
+                      <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl size="small" fullWidth>
+                  <InputLabel>ステータス</InputLabel>
+                  <Select
+                    label="ステータス"
+                    value={filters.status}
+                    onChange={e => set("status", e.target.value)}
+                  >
+                    <MenuItem value=""><em>すべて</em></MenuItem>
+                    {STATUS_OPTIONS.map(o => (
+                      <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* Date range */}
+              <Box sx={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 1, alignItems: "center" }}>
+                <TextField
+                  label="開始日"
+                  type="date"
+                  size="small"
+                  fullWidth
+                  value={filters.dateFrom}
+                  onChange={e => set("dateFrom", e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <Typography color="text.secondary" sx={{ px: 0.5 }}>〜</Typography>
+                <TextField
+                  label="終了日"
+                  type="date"
+                  size="small"
+                  fullWidth
+                  value={filters.dateTo}
+                  inputProps={{ min: filters.dateFrom }}
+                  onChange={e => set("dateTo", e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Box>
+
+              {/* Tags */}
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>タグ</Typography>
+                <FormGroup row>
+                  {TAG_OPTIONS.map(tag => (
+                    <FormControlLabel
+                      key={tag.value}
+                      control={
+                        <Checkbox
+                          size="small"
+                          checked={filters.tags.includes(tag.value)}
+                          onChange={() => toggleTag(tag.value)}
+                        />
+                      }
+                      label={<Typography variant="body2">{tag.label}</Typography>}
+                    />
+                  ))}
+                </FormGroup>
+              </Box>
+
+              <Divider />
+
+              {/* Actions */}
+              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+                <Button variant="outlined" color="inherit" onClick={handleReset}>
+                  リセット
+                </Button>
+                <Button type="submit" variant="contained" disableElevation>
+                  検索
+                </Button>
+              </Box>
+
+            </Stack>
+          </Box>
+        </Paper>
+      );
+    }
+
+    // ---- ResultTable ----
+
+    function ResultTable({ rows }) {
+      return (
+        <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
+          <Box sx={{ px: 3, py: 2, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid", borderColor: "divider" }}>
+            <Typography variant="subtitle2">検索結果</Typography>
+            <Typography variant="body2" color="text.secondary">{rows.length} 件</Typography>
+          </Box>
+
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: "grey.50" }}>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em" }}>案件名</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em" }}>カテゴリ</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em" }}>ステータス</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em" }}>登録日</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontSize: "0.75rem", color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em" }}>タグ</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ py: 6, color: "text.secondary" }}>
+                      条件に一致する案件がありません
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  rows.map(row => (
+                    <TableRow key={row.id} hover>
+                      <TableCell sx={{ fontWeight: 500 }}>{row.title}</TableCell>
+                      <TableCell>{CATEGORY_LABEL[row.category]}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={STATUS_LABEL[row.status]}
+                          color={STATUS_COLOR[row.status]}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>{row.date}</TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                          {row.tags.map(t => (
+                            <Chip key={t} label={t} size="small" sx={{ fontSize: "0.7rem" }} />
+                          ))}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+      );
+    }
+
+    // ---- App ----
+
+    function App() {
+      const [activeFilters, setActiveFilters] = useState(DEFAULT_FILTERS);
+      const rows = useMemo(() => applyFilters(SAMPLE_DATA, activeFilters), [activeFilters]);
+
+      return (
+        <Container maxWidth="lg" sx={{ py: 5 }}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h5" fontWeight={700}>SearchForm — skill demo</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              フィルターを設定して「検索」を押すとテーブルが絞り込まれます。
+            </Typography>
+          </Box>
+
+          <Stack spacing={3}>
+            <SearchForm
+              onSearch={setActiveFilters}
+              onReset={() => setActiveFilters(DEFAULT_FILTERS)}
+            />
+            <ResultTable rows={rows} />
+          </Stack>
+        </Container>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
